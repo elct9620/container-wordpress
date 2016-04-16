@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-if [[ "$1" == apache2* ]] || [ "$1" == php-fpm ]; then
 	if [ -n "$MYSQL_PORT_3306_TCP" ]; then
 		if [ -z "$WORDPRESS_DB_HOST" ]; then
 			WORDPRESS_DB_HOST='mysql'
@@ -43,22 +42,6 @@ if [[ "$1" == apache2* ]] || [ "$1" == php-fpm ]; then
 		fi
 		tar cf - -C /usr/src/wordpress . | tar xf -
 		echo >&2 "Complete! WordPress has been successfully copied to $(pwd)"
-		if [ ! -e .htaccess ]; then
-			# NOTE: The "Indexes" option is disabled in the php:apache base image
-			cat > .htaccess <<-'EOF'
-				# BEGIN WordPress
-				<IfModule mod_rewrite.c>
-				RewriteEngine On
-				RewriteBase /
-				RewriteRule ^index\.php$ - [L]
-				RewriteCond %{REQUEST_FILENAME} !-f
-				RewriteCond %{REQUEST_FILENAME} !-d
-				RewriteRule . /index.php [L]
-				</IfModule>
-				# END WordPress
-			EOF
-			chown www-data:www-data .htaccess
-		fi
 	fi
 
 	# TODO handle WordPress upgrades magically in the same way, but only if wp-includes/version.php's $wp_version is less than /usr/src/wordpress/wp-includes/version.php's $wp_version
@@ -91,7 +74,7 @@ EOPHP
 		php -r 'var_export(('$2') $argv[1]);' "$1"
 	}
 	set_config() {
-    echo "UPDATE CONFIG: $1:$2"
+		echo "SET CONFIG: $1:$2"
 		key="$1"
 		value="$2"
 		var_type="${3:-string}"
@@ -101,8 +84,6 @@ EOPHP
 			start="^(\s*)$(sed_escape_lhs "$key")\s*="
 			end=";"
 		fi
-    echo "$start, $end, $(sed_escape_rhs "$(php_escape "$value" "$var_type")")"
-    echo "s/($start\s*).*($end)$/\1$(sed_escape_rhs "$(php_escape "$value" "$var_type")")\2/"
 		sed -ri "s/($start\s*).*($end)$/\1$(sed_escape_rhs "$(php_escape "$value" "$var_type")")\2/" wp-config.php
 	}
 
@@ -129,7 +110,7 @@ EOPHP
 			set_config "$unique" "$unique_value"
 		else
 			# if not specified, let's generate a random value
-			current_set="$(sed -rn "s/define\((([\'\"])$unique\2\s*,\s*)(['\"])(.*)\3\);/\4/p" wp-config.php)"
+			current_set="$(sed -rn "s/define\((([\'\"])$unique['\"]\s*,\s*)(['\"])(.*)['\"]\);/\4/p" wp-config.php)"
 			if [ "$current_set" = 'put your unique phrase here' ]; then
 				set_config "$unique" "$(head -c1M /dev/urandom | sha1sum | cut -d' ' -f1)"
 			fi
@@ -168,6 +149,5 @@ if (!$mysql->query('CREATE DATABASE IF NOT EXISTS `' . $mysql->real_escape_strin
 }
 $mysql->close();
 EOPHP
-fi
 
 exec "$@"
