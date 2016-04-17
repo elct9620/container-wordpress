@@ -74,7 +74,6 @@ EOPHP
 		php -r 'var_export(('$2') $argv[1]);' "$1"
 	}
 	set_config() {
-		echo "SET CONFIG: $1:$2"
 		key="$1"
 		value="$2"
 		var_type="${3:-string}"
@@ -86,6 +85,22 @@ EOPHP
 		fi
 		sed -ri "s/($start\s*).*($end)$/\1$(sed_escape_rhs "$(php_escape "$value" "$var_type")")\2/" wp-config.php
 	}
+
+  set_php_config() {
+    # No default php config file, direct create new file and add config
+    CONFIG_FILE="/usr/local/etc/php/php.ini"
+    [[ ! -f ${CONFIG_FILE} ]] && touch ${CONFIG_FILE}
+
+    key="$1"
+    value="$2"
+
+    echo "$key=$value" >> ${CONFIG_FILE}
+  }
+
+  set_php_config 'display_errors' 'Off'
+  set_php_config 'log_errors' 'On'
+  set_php_config 'error_log' '/dev/stderr'
+  set_php_config 'upload_max_filesize' '10M'
 
 	set_config 'DB_HOST' "$WORDPRESS_DB_HOST"
 	set_config 'DB_USER' "$WORDPRESS_DB_USER"
