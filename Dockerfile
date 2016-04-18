@@ -1,6 +1,6 @@
 FROM php:7-fpm-alpine
 
-RUN apk --update add libpng-dev libjpeg-turbo-dev bash \
+RUN apk --update add libpng-dev libjpeg-turbo-dev msmtp bash \
     && rm -rf /var/cache/apk/* \
     && docker-php-ext-configure gd --with-png-dir=/usr --with-jpeg-dir=/usr \
     && docker-php-ext-install gd mysqli \
@@ -30,6 +30,7 @@ RUN curl -o wordpress.tar.gz -SL https://wordpress.org/wordpress-${WORDPRESS_VER
   && chown -R www-data:www-data /usr/src/wordpress
 
 COPY docker-entrypoint.sh /entrypoint.sh
+COPY etc/ /etc
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["php-fpm"]

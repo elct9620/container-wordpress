@@ -97,10 +97,53 @@ EOPHP
     echo "$key=$value" >> ${CONFIG_FILE}
   }
 
+  set_smtp_config() {
+    key=$1
+    value=$2
+
+    sed -ri "s/#{0,1}$key\s+.*$/$key $value/g" ${CONFIG_FILE}
+  }
+
+  setup_smtp() {
+    LOG_FILE='/var/log/mail.log'
+    CONFIG_FILE='/etc/msmtprc'
+
+    touch ${LOG_FILE}
+    chown www-data:www-data ${LOG_FILE}
+    chown www-data:www-data ${CONFIG_FILE}
+    chmod 0600 ${CONFIG_FILE}
+
+    if [[ -n ${SMTP_FROM} ]]; then
+      set_smtp_config 'from' ${SMTP_FROM}
+    fi
+    if [[ -n ${SMTP_HOST} ]]; then
+      set_smtp_config 'host' ${SMTP_HOST}
+    fi
+    if [[ -n ${SMTP_PORT} ]]; then
+      set_smtp_config 'port' ${SMTP_PORT}
+    fi
+    if [[ -n ${SMTP_TLS} ]]; then
+      set_smtp_config 'tls' ${SMTP_TLS}
+    fi
+    if [[ -n ${SMTP_AUTH} ]]; then
+      set_smtp_config 'auth' ${SMTP_AUTH}
+    fi
+    if [[ -n ${SMTP_USER} ]]; then
+      set_smtp_config 'user' ${SMTP_USER}
+      set_smtp_config 'auth' 'on' # Force enable auth
+    fi
+    if [[ -n ${SMTP_PASSWORD} ]]; then
+      set_smtp_config 'password' ${SMTP_PASSWORD}
+    fi
+  }
+
+  setup_smtp
+
   set_php_config 'display_errors' 'Off'
   set_php_config 'log_errors' 'On'
   set_php_config 'error_log' '/dev/stderr'
   set_php_config 'upload_max_filesize' '10M'
+  [[ -n ${SMTP_HOST} ]] && set_php_config 'sendmail_path' '/usr/bin/msmtp -C /etc/msmtprc -t'
 
 	set_config 'DB_HOST' "$WORDPRESS_DB_HOST"
 	set_config 'DB_USER' "$WORDPRESS_DB_USER"
